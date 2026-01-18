@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.launchpad"
+    namespace = "com.example.driftclock"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.launchpad"
+        applicationId = "com.example.driftclock"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -61,6 +61,9 @@ dependencies {
 
     // Animation
     implementation(libs.androidx.compose.animation)
+
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
