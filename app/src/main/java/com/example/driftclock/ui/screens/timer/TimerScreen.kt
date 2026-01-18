@@ -2,30 +2,29 @@ package com.example.driftclock.ui.screens.timer
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,9 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import com.example.driftclock.data.repository.PreferencesRepository
 import com.example.driftclock.util.NotificationHelper
@@ -52,107 +54,39 @@ fun TimerScreen(
     }
 
     val timerState by viewModel.timerState.collectAsState()
-
-    // Input state as a string of digits (max 6 digits: HHMMSS)
     var inputDigits by remember { mutableStateOf("") }
 
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
+        val maxWidth = maxWidth
+        val maxHeight = maxHeight
 
         if (timerState.isActive || timerState.isFinished) {
             // Timer running/paused/finished display
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(280.dp)
-            ) {
-                CircularProgressIndicator(
-                    progress = { timerState.progress },
-                    modifier = Modifier.size(280.dp),
-                    strokeWidth = 8.dp,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    color = when {
-                        timerState.isFinished -> MaterialTheme.colorScheme.tertiary
-                        timerState.isPaused -> MaterialTheme.colorScheme.secondary
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = if (timerState.isFinished) "00:00" else TimeFormatter.formatTimer(timerState.displayedRemainingMs),
-                        style = MaterialTheme.typography.displayLarge
-                    )
-                    if (timerState.isFinished) {
-                        Text(
-                            text = "Time's up!",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+            TimerRunningContent(
+                timerState = timerState,
+                maxWidth = maxWidth,
+                onReset = {
+                    viewModel.resetTimer()
+                    inputDigits = ""
+                },
+                onPauseResume = {
+                    if (timerState.isRunning) {
+                        viewModel.pauseTimer()
+                    } else {
+                        viewModel.resumeTimer()
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Control buttons
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Reset button
-                FilledIconButton(
-                    onClick = {
-                        viewModel.resetTimer()
-                        inputDigits = ""
-                    },
-                    modifier = Modifier.size(64.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Stop,
-                        contentDescription = "Reset",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                // Play/Pause button
-                if (!timerState.isFinished) {
-                    FilledIconButton(
-                        onClick = {
-                            if (timerState.isRunning) {
-                                viewModel.pauseTimer()
-                            } else {
-                                viewModel.resumeTimer()
-                            }
-                        },
-                        modifier = Modifier.size(80.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        Icon(
-                            imageVector = if (timerState.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (timerState.isRunning) "Pause" else "Resume",
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                }
-            }
+            )
         } else {
             // Timer input mode with numpad
-            TimerInputDisplay(inputDigits = inputDigits)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Number pad
-            NumberPad(
+            TimerInputContent(
+                inputDigits = inputDigits,
+                maxWidth = maxWidth,
+                maxHeight = maxHeight,
                 onDigitClick = { digit ->
                     if (inputDigits.length < 6) {
                         inputDigits += digit
@@ -163,25 +97,168 @@ fun TimerScreen(
                         inputDigits = inputDigits.dropLast(1)
                     }
                 },
-                onClear = {
-                    inputDigits = ""
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Start button
-            val hasValidInput = inputDigits.isNotEmpty() && inputDigits.any { it != '0' }
-
-            FilledIconButton(
-                onClick = {
+                onStart = {
                     val (hours, minutes, seconds) = parseInputDigits(inputDigits)
                     viewModel.setInputHours(hours)
                     viewModel.setInputMinutes(minutes)
                     viewModel.setInputSeconds(seconds)
                     viewModel.startTimer()
-                },
-                modifier = Modifier.size(80.dp),
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimerRunningContent(
+    timerState: com.example.driftclock.data.model.TimerState,
+    maxWidth: Dp,
+    onReset: () -> Unit,
+    onPauseResume: () -> Unit
+) {
+    val progressSize = min(maxWidth - 32.dp, 300.dp)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(progressSize)
+        ) {
+            CircularProgressIndicator(
+                progress = { timerState.progress },
+                modifier = Modifier.size(progressSize),
+                strokeWidth = 8.dp,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                color = when {
+                    timerState.isFinished -> MaterialTheme.colorScheme.tertiary
+                    timerState.isPaused -> MaterialTheme.colorScheme.secondary
+                    else -> MaterialTheme.colorScheme.primary
+                }
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = if (timerState.isFinished) "00:00" else TimeFormatter.formatTimer(timerState.displayedRemainingMs),
+                    style = MaterialTheme.typography.displayLarge
+                )
+                if (timerState.isFinished) {
+                    Text(
+                        text = "Time's up!",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilledIconButton(
+                onClick = onReset,
+                modifier = Modifier.size(64.dp),
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Stop,
+                    contentDescription = "Reset",
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            if (!timerState.isFinished) {
+                FilledIconButton(
+                    onClick = onPauseResume,
+                    modifier = Modifier.size(80.dp),
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (timerState.isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (timerState.isRunning) "Pause" else "Resume",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimerInputContent(
+    inputDigits: String,
+    maxWidth: Dp,
+    maxHeight: Dp,
+    onDigitClick: (String) -> Unit,
+    onBackspace: () -> Unit,
+    onStart: () -> Unit
+) {
+    // Calculate adaptive sizes
+    val horizontalPadding = 24.dp
+    val availableWidth = maxWidth - horizontalPadding
+
+    // Numpad: 3 buttons per row with spacing
+    val numpadSpacing = 12.dp
+    val buttonSize = ((availableWidth - (numpadSpacing * 2)) / 3).coerceIn(60.dp, 90.dp)
+
+    // Calculate based on available height
+    val availableHeight = maxHeight - 32.dp // padding
+    val displayHeight = availableHeight * 0.18f
+    val numpadHeight = (buttonSize + numpadSpacing) * 4
+    val startButtonSize = 72.dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Time display - takes proportional space at top
+        Box(
+            modifier = Modifier
+                .weight(0.25f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            TimerInputDisplay(inputDigits = inputDigits, maxWidth = maxWidth)
+        }
+
+        // Number pad - takes most of the space
+        Box(
+            modifier = Modifier
+                .weight(0.55f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            AdaptiveNumberPad(
+                buttonSize = buttonSize,
+                spacing = numpadSpacing,
+                onDigitClick = onDigitClick,
+                onBackspace = onBackspace
+            )
+        }
+
+        // Start button - fixed at bottom
+        Box(
+            modifier = Modifier
+                .weight(0.20f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            val hasValidInput = inputDigits.isNotEmpty() && inputDigits.any { it != '0' }
+
+            FilledIconButton(
+                onClick = onStart,
+                modifier = Modifier.size(startButtonSize),
                 enabled = hasValidInput,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary
@@ -190,7 +267,7 @@ fun TimerScreen(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Start",
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(36.dp)
                 )
             }
         }
@@ -198,51 +275,34 @@ fun TimerScreen(
 }
 
 @Composable
-private fun TimerInputDisplay(inputDigits: String) {
-    // Pad to 6 digits and split into HH MM SS
+private fun TimerInputDisplay(inputDigits: String, maxWidth: Dp) {
     val padded = inputDigits.padStart(6, '0')
     val hours = padded.substring(0, 2)
     val minutes = padded.substring(2, 4)
     val seconds = padded.substring(4, 6)
 
-    // Determine which parts are "active" (user has typed into them)
     val totalDigits = inputDigits.length
     val hoursActive = totalDigits > 4
     val minutesActive = totalDigits > 2
     val secondsActive = totalDigits > 0
+
+    // Scale font size based on width
+    val fontSize = when {
+        maxWidth < 300.dp -> 42.sp
+        maxWidth < 400.dp -> 52.sp
+        else -> 60.sp
+    }
 
     Row(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxWidth()
     ) {
-        // Hours
-        TimeUnitDisplay(
-            value = hours,
-            label = "h",
-            isActive = hoursActive,
-            isZero = hours == "00"
-        )
-
-        Spacer(modifier = Modifier.size(8.dp))
-
-        // Minutes
-        TimeUnitDisplay(
-            value = minutes,
-            label = "m",
-            isActive = minutesActive,
-            isZero = minutes == "00" && !hoursActive
-        )
-
-        Spacer(modifier = Modifier.size(8.dp))
-
-        // Seconds
-        TimeUnitDisplay(
-            value = seconds,
-            label = "s",
-            isActive = secondsActive,
-            isZero = seconds == "00" && !minutesActive
-        )
+        TimeUnitDisplay(value = hours, label = "h", isActive = hoursActive, fontSize = fontSize)
+        Spacer(modifier = Modifier.size(4.dp))
+        TimeUnitDisplay(value = minutes, label = "m", isActive = minutesActive, fontSize = fontSize)
+        Spacer(modifier = Modifier.size(4.dp))
+        TimeUnitDisplay(value = seconds, label = "s", isActive = secondsActive, fontSize = fontSize)
     }
 }
 
@@ -251,73 +311,68 @@ private fun TimeUnitDisplay(
     value: String,
     label: String,
     isActive: Boolean,
-    isZero: Boolean
+    fontSize: androidx.compose.ui.unit.TextUnit
 ) {
-    val textColor = when {
-        isActive && !isZero -> MaterialTheme.colorScheme.onSurface
-        isActive -> MaterialTheme.colorScheme.onSurface
-        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    val textColor = if (isActive) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     }
 
     Row(verticalAlignment = Alignment.Bottom) {
         Text(
             text = value,
             style = MaterialTheme.typography.displayLarge.copy(
-                fontSize = 56.sp,
+                fontSize = fontSize,
                 fontWeight = FontWeight.Light
             ),
             color = textColor
         )
         Text(
             text = label,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = (fontSize.value / 6).dp)
         )
     }
 }
 
 @Composable
-private fun NumberPad(
+private fun AdaptiveNumberPad(
+    buttonSize: Dp,
+    spacing: Dp,
     onDigitClick: (String) -> Unit,
-    onBackspace: () -> Unit,
-    onClear: () -> Unit
+    onBackspace: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing)
     ) {
-        // Row 1: 1 2 3
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NumPadButton("1") { onDigitClick("1") }
-            NumPadButton("2") { onDigitClick("2") }
-            NumPadButton("3") { onDigitClick("3") }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+            NumPadButton("1", buttonSize) { onDigitClick("1") }
+            NumPadButton("2", buttonSize) { onDigitClick("2") }
+            NumPadButton("3", buttonSize) { onDigitClick("3") }
         }
-
-        // Row 2: 4 5 6
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NumPadButton("4") { onDigitClick("4") }
-            NumPadButton("5") { onDigitClick("5") }
-            NumPadButton("6") { onDigitClick("6") }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+            NumPadButton("4", buttonSize) { onDigitClick("4") }
+            NumPadButton("5", buttonSize) { onDigitClick("5") }
+            NumPadButton("6", buttonSize) { onDigitClick("6") }
         }
-
-        // Row 3: 7 8 9
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NumPadButton("7") { onDigitClick("7") }
-            NumPadButton("8") { onDigitClick("8") }
-            NumPadButton("9") { onDigitClick("9") }
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+            NumPadButton("7", buttonSize) { onDigitClick("7") }
+            NumPadButton("8", buttonSize) { onDigitClick("8") }
+            NumPadButton("9", buttonSize) { onDigitClick("9") }
         }
-
-        // Row 4: 00 0 backspace
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NumPadButton("00") {
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+            NumPadButton("00", buttonSize) {
                 onDigitClick("0")
                 onDigitClick("0")
             }
-            NumPadButton("0") { onDigitClick("0") }
+            NumPadButton("0", buttonSize) { onDigitClick("0") }
             NumPadIconButton(
-                icon = Icons.Default.Backspace,
+                icon = Icons.AutoMirrored.Filled.Backspace,
                 contentDescription = "Backspace",
+                buttonSize = buttonSize,
                 onClick = onBackspace
             )
         }
@@ -327,13 +382,20 @@ private fun NumberPad(
 @Composable
 private fun NumPadButton(
     text: String,
+    buttonSize: Dp,
     onClick: () -> Unit
 ) {
+    val fontSize = when {
+        buttonSize < 70.dp -> 20.sp
+        buttonSize < 80.dp -> 24.sp
+        else -> 28.sp
+    }
+
     Surface(
         onClick = onClick,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.size(72.dp)
+        modifier = Modifier.size(buttonSize)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -341,7 +403,7 @@ private fun NumPadButton(
         ) {
             Text(
                 text = text,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = fontSize),
                 fontWeight = FontWeight.Normal
             )
         }
@@ -350,15 +412,18 @@ private fun NumPadButton(
 
 @Composable
 private fun NumPadIconButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     contentDescription: String,
+    buttonSize: Dp,
     onClick: () -> Unit
 ) {
+    val iconSize = buttonSize * 0.35f
+
     Surface(
         onClick = onClick,
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.size(72.dp)
+        modifier = Modifier.size(buttonSize)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -367,7 +432,7 @@ private fun NumPadIconButton(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(28.dp)
+                modifier = Modifier.size(iconSize)
             )
         }
     }
