@@ -5,34 +5,39 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.driftclock.data.repository.PreferencesRepository
 import com.example.driftclock.util.NotificationHelper
 import com.example.driftclock.util.TimeFormatter
@@ -47,9 +52,9 @@ fun TimerScreen(
     }
 
     val timerState by viewModel.timerState.collectAsState()
-    val inputHours by viewModel.inputHours.collectAsState()
-    val inputMinutes by viewModel.inputMinutes.collectAsState()
-    val inputSeconds by viewModel.inputSeconds.collectAsState()
+
+    // Input state as a string of digits (max 6 digits: HHMMSS)
+    var inputDigits by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -57,7 +62,7 @@ fun TimerScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         if (timerState.isActive || timerState.isFinished) {
             // Timer running/paused/finished display
@@ -101,7 +106,10 @@ fun TimerScreen(
             ) {
                 // Reset button
                 FilledIconButton(
-                    onClick = { viewModel.resetTimer() },
+                    onClick = {
+                        viewModel.resetTimer()
+                        inputDigits = ""
+                    },
                     modifier = Modifier.size(64.dp),
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -138,86 +146,41 @@ fun TimerScreen(
                 }
             }
         } else {
-            // Timer input
-            Text(
-                text = "Set timer",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Timer input mode with numpad
+            TimerInputDisplay(inputDigits = inputDigits)
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Number pad
+            NumberPad(
+                onDigitClick = { digit ->
+                    if (inputDigits.length < 6) {
+                        inputDigits += digit
+                    }
+                },
+                onBackspace = {
+                    if (inputDigits.isNotEmpty()) {
+                        inputDigits = inputDigits.dropLast(1)
+                    }
+                },
+                onClear = {
+                    inputDigits = ""
+                }
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                TimeInputField(
-                    value = inputHours,
-                    onValueChange = { viewModel.setInputHours(it) },
-                    label = "Hours"
-                )
-
-                Text(
-                    text = ":",
-                    style = MaterialTheme.typography.displayMedium,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                TimeInputField(
-                    value = inputMinutes,
-                    onValueChange = { viewModel.setInputMinutes(it) },
-                    label = "Minutes"
-                )
-
-                Text(
-                    text = ":",
-                    style = MaterialTheme.typography.displayMedium,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                TimeInputField(
-                    value = inputSeconds,
-                    onValueChange = { viewModel.setInputSeconds(it) },
-                    label = "Seconds"
-                )
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Quick presets
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                QuickPresetButton(text = "1:00") {
-                    viewModel.setInputHours(0)
-                    viewModel.setInputMinutes(1)
-                    viewModel.setInputSeconds(0)
-                }
-                QuickPresetButton(text = "5:00") {
-                    viewModel.setInputHours(0)
-                    viewModel.setInputMinutes(5)
-                    viewModel.setInputSeconds(0)
-                }
-                QuickPresetButton(text = "10:00") {
-                    viewModel.setInputHours(0)
-                    viewModel.setInputMinutes(10)
-                    viewModel.setInputSeconds(0)
-                }
-                QuickPresetButton(text = "30:00") {
-                    viewModel.setInputHours(0)
-                    viewModel.setInputMinutes(30)
-                    viewModel.setInputSeconds(0)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Start button
-            val hasValidInput = inputHours > 0 || inputMinutes > 0 || inputSeconds > 0
+            val hasValidInput = inputDigits.isNotEmpty() && inputDigits.any { it != '0' }
 
             FilledIconButton(
-                onClick = { viewModel.startTimer() },
+                onClick = {
+                    val (hours, minutes, seconds) = parseInputDigits(inputDigits)
+                    viewModel.setInputHours(hours)
+                    viewModel.setInputMinutes(minutes)
+                    viewModel.setInputSeconds(seconds)
+                    viewModel.startTimer()
+                },
                 modifier = Modifier.size(80.dp),
                 enabled = hasValidInput,
                 colors = IconButtonDefaults.filledIconButtonColors(
@@ -235,40 +198,185 @@ fun TimerScreen(
 }
 
 @Composable
-private fun TimeInputField(
-    value: Int,
-    onValueChange: (Int) -> Unit,
-    label: String
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        OutlinedTextField(
-            value = if (value == 0) "" else value.toString(),
-            onValueChange = { text ->
-                val newValue = text.filter { it.isDigit() }.take(2).toIntOrNull() ?: 0
-                onValueChange(newValue)
-            },
-            modifier = Modifier.width(72.dp),
-            textStyle = MaterialTheme.typography.headlineLarge.copy(
-                textAlign = TextAlign.Center
-            ),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true
+private fun TimerInputDisplay(inputDigits: String) {
+    // Pad to 6 digits and split into HH MM SS
+    val padded = inputDigits.padStart(6, '0')
+    val hours = padded.substring(0, 2)
+    val minutes = padded.substring(2, 4)
+    val seconds = padded.substring(4, 6)
+
+    // Determine which parts are "active" (user has typed into them)
+    val totalDigits = inputDigits.length
+    val hoursActive = totalDigits > 4
+    val minutesActive = totalDigits > 2
+    val secondsActive = totalDigits > 0
+
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Hours
+        TimeUnitDisplay(
+            value = hours,
+            label = "h",
+            isActive = hoursActive,
+            isZero = hours == "00"
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+
+        Spacer(modifier = Modifier.size(8.dp))
+
+        // Minutes
+        TimeUnitDisplay(
+            value = minutes,
+            label = "m",
+            isActive = minutesActive,
+            isZero = minutes == "00" && !hoursActive
+        )
+
+        Spacer(modifier = Modifier.size(8.dp))
+
+        // Seconds
+        TimeUnitDisplay(
+            value = seconds,
+            label = "s",
+            isActive = secondsActive,
+            isZero = seconds == "00" && !minutesActive
         )
     }
 }
 
 @Composable
-private fun QuickPresetButton(
+private fun TimeUnitDisplay(
+    value: String,
+    label: String,
+    isActive: Boolean,
+    isZero: Boolean
+) {
+    val textColor = when {
+        isActive && !isZero -> MaterialTheme.colorScheme.onSurface
+        isActive -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    }
+
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontSize = 56.sp,
+                fontWeight = FontWeight.Light
+            ),
+            color = textColor
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+    }
+}
+
+@Composable
+private fun NumberPad(
+    onDigitClick: (String) -> Unit,
+    onBackspace: () -> Unit,
+    onClear: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Row 1: 1 2 3
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            NumPadButton("1") { onDigitClick("1") }
+            NumPadButton("2") { onDigitClick("2") }
+            NumPadButton("3") { onDigitClick("3") }
+        }
+
+        // Row 2: 4 5 6
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            NumPadButton("4") { onDigitClick("4") }
+            NumPadButton("5") { onDigitClick("5") }
+            NumPadButton("6") { onDigitClick("6") }
+        }
+
+        // Row 3: 7 8 9
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            NumPadButton("7") { onDigitClick("7") }
+            NumPadButton("8") { onDigitClick("8") }
+            NumPadButton("9") { onDigitClick("9") }
+        }
+
+        // Row 4: 00 0 backspace
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            NumPadButton("00") {
+                onDigitClick("0")
+                onDigitClick("0")
+            }
+            NumPadButton("0") { onDigitClick("0") }
+            NumPadIconButton(
+                icon = Icons.Default.Backspace,
+                contentDescription = "Backspace",
+                onClick = onBackspace
+            )
+        }
+    }
+}
+
+@Composable
+private fun NumPadButton(
     text: String,
     onClick: () -> Unit
 ) {
-    TextButton(onClick = onClick) {
-        Text(text = text)
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.size(72.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Normal
+            )
+        }
     }
+}
+
+@Composable
+private fun NumPadIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.size(72.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+    }
+}
+
+private fun parseInputDigits(input: String): Triple<Int, Int, Int> {
+    val padded = input.padStart(6, '0')
+    val hours = padded.substring(0, 2).toIntOrNull() ?: 0
+    val minutes = padded.substring(2, 4).toIntOrNull() ?: 0
+    val seconds = padded.substring(4, 6).toIntOrNull() ?: 0
+    return Triple(hours, minutes, seconds)
 }
