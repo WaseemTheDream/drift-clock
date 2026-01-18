@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(git init:*)",
+      "Bash(where gh)",
+      "Bash(git config:*)",
+      "Bash(winget:*)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth status)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" auth login --web --git-protocol https)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(\"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\" repo create launchpad --public --source=. --remote=origin --push)",
+      "Bash(git mv:*)",
+      "Bash(move:*)",
+      "Bash(\"C:\\\\Users\\\\Waz\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\python.exe\" --version)",
+      "Bash(\"C:\\\\Users\\\\Waz\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python312\\\\Scripts\\\\pip.exe\" --version)",
+      "Bash(git push)",
+      "Bash(adb devices:*)",
+      "Bash(.gradlew.bat:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(\"C:\\\\Users\\\\Waz\\\\AndroidStudioProjects\\\\launchpad\\\\gradlew.bat\" assembleDebug)",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Android/Android Studio/jbr\")",
+      "Bash(\"C:\\\\Users\\\\Waz\\\\AndroidStudioProjects\\\\launchpad\\\\gradlew.bat\" installDebug)",
+      "Bash(adb shell am start:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
